@@ -67,7 +67,7 @@ $projectVariables = [ordered]@{"Resource Group"              = $ResourceGroup
 							   "Max Size Bytes"              = $sql_maxSizeBytes}
 
 
-Write-DeploymentParameterHeader -component "SQL Database" -variables $projectVariables
+Write-Variables -component "SQL Database" -variables $projectVariables
 
 
 # Deploy the SQL Database.
