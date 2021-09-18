@@ -1,0 +1,132 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "hostPlanId": {
+      "type": "string",
+      "metadata": {
+        "description": "The Id of HostServicePlan."
+      }
+    },
+    "hostingPlanLinux": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "The application service plan kind is linux."
+      }
+    },
+    "webSiteName": {
+      "type": "string",
+      "minLength": 1,
+      "metadata": {
+        "description": "The name of the website being deployed"
+      }
+    },
+    "webSocketsEnabled": {
+      "type": "bool",
+      "defaultValue": false
+    },
+    "clientAffinityEnabled": {
+      "type": "bool",
+      "defaultValue": true
+    },
+    "devLang": {
+      "type": "string",
+      "defaultValue": "net",
+      "allowedValues": [
+        "net",
+        "java"
+      ],
+      "metadata": {
+        "description": "Sets the Language to be used for the Web App, currently java or net"
+      }
+    },
+    "allowedOrigins": {
+      "type": "array",
+      "defaultValue": [],
+      "metadata": {
+        "description": "The list of allowed origins for CORS"
+      }
+    },
+    "applicationSettings": {
+      "type": "array",
+      "defaultValue": [],
+      "metadata": {
+        "description": "App Settings to be applied to the application config"
+      }
+    },
+    "connectionStrings": {
+      "type": "array",
+      "defaultValue": [],
+      "metadata": {
+        "description": "Connection Strings to be applied to the application config"
+      }
+    },
+    "webIdentity": {
+      "type": "string",
+      "defaultValue": "None",
+      "allowedValues": [
+        "None",
+        "SystemAssigned"
+      ],
+      "metadata": {
+        "description": "The name of the identity being applied to the WebApp"
+      }
+    },
+    "ASPResourceGroup": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "ASP Resource Group Name"
+      }
+    }
+  },
+  "variables": {
+    "configArray": "[variables(concat('config', parameters('devLang')))]",
+    "configAllowedOrigins": "[if(greater(length(parameters('allowedOrigins')), 0), parameters('allowedOrigins'), json('null'))]",
+    "configjava": {
+      "alwaysOn": true,
+      "use32BitWorkerProcess": false,
+      "webSocketsEnabled": "[parameters('webSocketsEnabled')]",
+      "phpVersion": "",
+      "linuxFxVersion": "[if(equals(parameters('hostingPlanLinux'),json('false')),json('null'),'TOMCAT|8.5-jre8')]",
+      "cors": {
+        "allowedOrigins": "[variables('configAllowedOrigins')]"
+      },
+      "appSettings": "[parameters('applicationSettings')]",
+      "connectionStrings": "[parameters('connectionStrings')]",
+      "scmIpSecurityRestrictionsUseMain": "[if(greater(length(parameters('ipRestrictions')), 0), 'true', json('null'))]"
+    },
+    "confignet": {
+      "alwaysOn": true,
+      "webSocketsEnabled": "[parameters('webSocketsEnabled')]",
+      "use32BitWorkerProcess": false,
+      "phpVersion": "",
+      "javaVersion": "",
+      "linuxFxVersion": "[if(equals(parameters('hostingPlanLinux'),json('false')),json('null'),'DOTNETCORE|3.1')]",
+      "cors": {
+        "allowedOrigins": "[variables('configAllowedOrigins')]"
+      },
+      "appSettings": "[parameters('applicationSettings')]",
+      "connectionStrings": "[parameters('connectionStrings')]",
+      "scmIpSecurityRestrictionsUseMain": "[if(greater(length(parameters('ipRestrictions')), 0), 'true', json('null'))]"
+    },
+  },
+  "resources": [
+    {
+      "apiVersion": "2018-02-01",
+      "name": "[parameters('webSiteName')]",
+      "type": "Microsoft.Web/sites",
+      "location": "[resourceGroup().location]",
+      "identity": {
+        "type": "[parameters('webIdentity')]"
+      },
+      "properties": {
+        "name": "[parameters('webSiteName')]",
+        "clientAffinityEnabled": "[parameters('clientAffinityEnabled')]",
+        "serverFarmId": "[parameters('hostPlanId')]",
+		    "httpsOnly": true,
+        "siteConfig": "[variables('configArray')]"
+      },
+    }
+}

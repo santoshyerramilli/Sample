@@ -1,0 +1,80 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2014-04-01-preview/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "administratorLogin": {
+      "type": "string",
+      "metadata": {
+        "description": "Login name for the administrator of the SQL server."
+      }
+    },
+    "administratorLoginPassword": {
+      "metadata": {
+        "description": "Password for the administrator of the SQL server."
+      },
+      "type": "securestring"
+    },
+    "elasticPoolName": {
+      "type": "string",
+      "defaultValue": "nopool",
+      "metadata": {
+        "description": "Name for the database elastic pool."
+      }
+    },
+    "poolDtu": {
+      "type": "int",
+      "defaultValue": 100,
+      "metadata": {
+        "description": "The total shared DTU for the database elastic pool."
+      }
+    },
+    "serverName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the database server."
+      }
+    },
+    "elastic": {
+      "type": "string",
+      "allowedValues": [
+        "True",
+        "False"
+      ],
+      "metadata": {
+        "description": "Use an elastic pool?"
+      }
+    }
+  },
+
+  "variables": {},
+  "resources": [
+    {
+      "type": "Microsoft.Sql/servers",
+      "apiVersion": "2021-02-01-preview",
+      "name": "[parameters('serverName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "administratorLogin": "[parameters('administratorLogin')]",
+        "administratorLoginPassword": "[parameters('administratorLoginPassword')]",
+        "version": "12.0"
+      }
+    },
+    {
+      "condition": "[equals(parameters('elastic'),'True')]",
+      "type": "Microsoft.Sql/servers/elasticPools",
+      "apiVersion": "2021-02-01-preview",
+      "name": "[concat(parameters('serverName'), '/', parameters('elasticPoolName'))]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.Sql/servers/', parameters('serverName'))]"
+      ],
+      "properties": {
+        "edition": "Standard",
+        "dtu": "[parameters('poolDtu')]",
+        "storageMB": 102400,
+        "databaseDtuMin": 0,
+        "databaseDtuMax": "[parameters('poolDtu')]"
+      }
+    }
+  ]
+}

@@ -1,0 +1,229 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2014-04-01-preview/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "appServicePlanName": {
+      "type": "string",
+      "minLength": 1,    
+	  "metadata": {
+        "description": "The name for this Application Service Plan."
+      }
+    },
+    "skucode": {
+      "type": "string",
+      "minLength": 2,
+      "defaultValue": "P1v2",
+      "metadata": {
+        "description": "This is the specific pricing tier which is used for the Application Service Plan"
+      }
+    },
+    "defaultCapacity": {
+      "type": "string",
+      "minLength": 1,
+      "defaultValue": "1",
+      "metadata": {
+        "description": "The default number of instances to be running before auto scaling takes over, or is the number of instances if on a Basic plan"
+      }
+    },
+    "maximumCapacity": {
+      "type": "string",
+      "minLength": 1,
+      "defaultValue": "4",
+      "metadata": {
+        "description": "The maximum number of App Service Plan instances that can be scaled upto using Auto Scaling.  (For ASE at least this number of workers needs to be available)"
+      }
+    },
+    "minimumCapacity": {
+      "type": "string",
+      "minLength": 1,
+      "defaultValue": "1",
+      "metadata": {
+        "description": "The minimum number of App Service Plan instances that can be scaled downto using Auto Scaling."
+      }
+    },
+    "autoScaleOutCPU": {
+      "type": "string",
+      "minLength": 1,
+      "defaultValue": "80.0",
+      "metadata": {
+        "description": "Scale out App Service Plan instance by a count of 1 based on CPU consumption"
+      }
+    },
+    "autoScaleInCPU": {
+      "type": "string",
+      "minLength": 1,
+      "defaultValue": "60.0",
+      "metadata": {
+        "description": "Scale In App Service Plan instances by a count of 1 based on CPU consumption."
+        }
+    },
+    "autoScaleMemory": {
+      "type": "string",
+      "allowedValues": [
+        "True",
+        "False"
+      ],
+      "defaultValue": "False",
+      "metadata": {
+        "description": "This value is determined in the PowerShell wrapper script. Enables or disables the creation of Memory based Auto Scale rules"
+      }
+    },
+    "autoScaleOutMemory": {
+      "type": "string",
+      "minLength": 1,
+      "defaultValue": "70.0",
+      "metadata": {
+        "description": "Scale out App Service Plan instance by a count of 1 based on Memory consumption"
+      }
+    },
+    "autoScaleInMemory": {
+      "type": "string",
+      "minLength": 1,
+      "defaultValue": "50.0",
+      "metadata": {
+        "description": "Scale In App Service Plan instances by a count of 1 based on Memory consumption."
+        }
+    },
+    "alertEmails": {
+      "type": "array",
+      "minLength": 1,
+      "metadata": {
+        "description": "An array of email addresses which receive alerts when the app plan is scaled."
+      }
+    }
+  },
+  "variables": {
+    "uriASP": "[resourceId('Microsoft.Web/serverFarms', parameters('appServicePlanName'))]",
+    "autoScaleRules": "[if(equals(parameters('autoScaleMemory'), 'True'), concat(variables('autoScaleRulesCpu'), variables('autoScaleRulesMemory')), variables('autoScaleRulesCpu'))]",
+    "autoScaleRulesCpu": [
+      {
+        "metricTrigger": {
+          "metricName": "CpuPercentage",
+          "metricResourceUri": "[variables('uriASP')]",
+          "timeGrain": "PT1M",
+          "statistic": "Average",
+          "timeWindow": "PT10M",
+          "timeAggregation": "Average",
+          "operator": "GreaterThan",
+          "threshold": "[parameters('autoScaleOutCPU')]"
+        },
+        "scaleAction": {
+          "direction": "Increase",
+          "type": "ChangeCount",
+          "value": 1,
+          "cooldown": "PT10M"
+        }
+      },
+      {
+        "metricTrigger": {
+          "metricName": "CpuPercentage",
+          "metricResourceUri": "[variables('uriASP')]",
+          "timeGrain": "PT1M",
+          "statistic": "Average",
+          "timeWindow": "PT10M",
+          "timeAggregation": "Average",
+          "operator": "LessThan",
+          "threshold": "[parameters('autoScaleInCPU')]"
+        },
+        "scaleAction": {
+          "direction": "Decrease",
+          "type": "ChangeCount",
+          "value": 1,
+          "cooldown": "PT10M"
+        }
+      }
+    ],
+    "autoScaleRulesMemory": [
+      {
+        "metricTrigger": {
+          "metricName": "MemoryPercentage",
+          "metricResourceUri": "[variables('uriASP')]",
+          "timeGrain": "PT1M",
+          "statistic": "Average",
+          "timeWindow": "PT10M",
+          "timeAggregation": "Average",
+          "operator": "GreaterThan",
+          "threshold": "[parameters('autoScaleOutMemory')]"
+        },
+        "scaleAction": {
+          "direction": "Increase",
+          "type": "ChangeCount",
+          "value": 1,
+          "cooldown": "PT10M"
+        }
+      },
+      {
+        "metricTrigger": {
+          "metricName": "MemoryPercentage",
+          "metricResourceUri": "[variables('uriASP')]",
+          "timeGrain": "PT1M",
+          "statistic": "Average",
+          "timeWindow": "PT10M",
+          "timeAggregation": "Average",
+          "operator": "LessThan",
+          "threshold": "[parameters('autoScaleInMemory')]"
+        },
+        "scaleAction": {
+          "direction": "Decrease",
+          "type": "ChangeCount",
+          "value": 1,
+          "cooldown": "PT10M"
+        }
+      }
+    ]
+  },
+  "resources": [
+    {
+      "apiVersion": "2018-02-01",
+      "name": "[parameters('appServicePlanName')]",
+      "type": "Microsoft.Web/serverfarms",
+      "location": "[resourceGroup().location]",
+      "kind": "",
+      "tags": "[parameters('tags')]",
+      "sku": {
+        "Name": "[parameters('skuCode')]"
+      },
+      "properties": {
+        "name": "[parameters('appServicePlanName')]",
+        "numberOfWorkers": "[parameters('defaultCapacity')]"
+      }
+    },
+    {
+      "apiVersion": "2015-04-01",
+      "name": "[concat(parameters('appServicePlanName'), '-AutoScale')]",
+      "type": "Microsoft.Insights/autoscalesettings",
+      "location": "[resourceGroup().location]",
+      "tags": "[parameters('tags')]",
+      "dependsOn": [
+        "[variables('uriASP')]"
+      ],
+      "properties": {
+        "enabled": true,
+        "name": "[concat(parameters('appServicePlanName'), '-AutoScale')]",
+        "targetResourceUri": "[variables('uriASP')]",
+        "notifications": [
+          {
+            "operation": "Scale",
+            "email": {
+              "sendToSubscriptionAdministrator": false,
+              "sendToSubscriptionCoAdministrators": false,
+              "customEmails": "[parameters('alertEmails')]"
+            },
+            "webhooks": []
+          }
+        ],
+        "profiles": [
+          {
+            "name": "Default",
+            "capacity": {
+              "minimum": "[parameters('minimumCapacity')]",
+              "maximum": "[parameters('maximumCapacity')]",
+              "default": "[parameters('defaultCapacity')]"
+            },
+            "rules": "[variables('autoScaleRules')]"
+          }
+        ]
+      }
+    }
+  ]
+}

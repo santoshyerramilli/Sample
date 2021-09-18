@@ -1,0 +1,47 @@
+variables:
+ tenantId: '******'
+ SubscriptionId: '*****'
+
+resources:
+   repositories:
+   - repository: Sample
+     type: git
+     name: Sample
+     ref: develop
+     
+
+pool:
+  vmImage: 'windows-latest'
+ 
+
+jobs:
+- job: Deploy
+  displayName: 'Deploy to Azure' 
+  pool:
+    vmImage: 'windows-latest'
+  steps:
+  - powershell: | 
+		$sp = New-AzADServicePrincipal -DisplayName ServicePrincipalName
+		$sp.secret | ConvertFrom-SecureString -AsPlainText
+		$pscredential = Get-Credential -UserName $sp.ApplicationId
+		Connect-AzAccount -ServicePrincipal -Credential $pscredential -Tenant $(tenantId)
+		Set-AzContext -Subscription $(SubscriptionId)
+	displayName: "Connect to Azure"	
+	
+  - powershell: |
+		./appserviceplandeployment.ps1
+    displayName: "Deploy App Service Plan"		
+		
+  - powershell: |
+		./appservicedeployment.ps1
+    displayName: "Deploy App Service"			
+		
+  - powershell: |
+		./sqlserverdeployment.ps1
+	displayName: "Deploy SQl Server"		
+		
+  - powershell: |
+		./sqldbdeployment.ps1	
+	displayName: "Deploy SQL Database"		
+    
+ 
