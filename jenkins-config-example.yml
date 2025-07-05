@@ -1,0 +1,247 @@
+# Jenkins Configuration Example for Acquia Deployment
+# This file shows example values for setting up your Jenkins pipeline
+
+# =============================================================================
+# JENKINS CREDENTIALS SETUP
+# =============================================================================
+# Navigate to: Manage Jenkins → Credentials → System → Global credentials
+# Create the following credentials:
+
+credentials:
+  # Acquia API Credentials
+  acquia-api-key:
+    type: "Secret text"
+    value: "your-acquia-api-key-here"
+    description: "Acquia API Key from cloud.acquia.com"
+  
+  acquia-api-secret:
+    type: "Secret text"
+    value: "your-acquia-api-secret-here"
+    description: "Acquia API Secret from cloud.acquia.com"
+  
+  acquia-application-uuid:
+    type: "Secret text"
+    value: "12345678-1234-1234-1234-123456789abc"
+    description: "Acquia Application UUID from application URL"
+  
+  acquia-git-repo-url:
+    type: "Secret text"
+    value: "sitename@svn-xxxxx.prod.hosting.acquia.com:sitename.git"
+    description: "Acquia Git Repository URL"
+
+# =============================================================================
+# ENVIRONMENT CONFIGURATION
+# =============================================================================
+# These can be customized in your Jenkinsfile
+
+environment_variables:
+  PHP_VERSION: "8.1"
+  COMPOSER_HOME: "/tmp/composer"
+  ACQUIA_GIT_BRANCH: "master"
+  NODE_VERSION: "18"  # If using Node.js
+
+# =============================================================================
+# PIPELINE PARAMETERS
+# =============================================================================
+# Default values for pipeline parameters
+
+parameters:
+  DEPLOY_ENVIRONMENT:
+    default: "dev"
+    options: ["dev", "test", "prod"]
+  
+  RUN_TESTS:
+    default: true
+    description: "Run automated tests before deployment"
+  
+  BACKUP_DATABASE:
+    default: true
+    description: "Create database backup before deployment"
+
+# =============================================================================
+# ACQUIA ENVIRONMENT MAPPING
+# =============================================================================
+# How your Git branches map to Acquia environments
+
+branch_mapping:
+  develop: "dev"
+  staging: "test"
+  master: "prod"
+  main: "prod"
+
+# =============================================================================
+# NOTIFICATION SETTINGS
+# =============================================================================
+# Configure notifications (optional)
+
+notifications:
+  slack:
+    enabled: false
+    webhook_url: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+    channel: "#deployments"
+    username: "Jenkins"
+  
+  email:
+    enabled: true
+    recipients: 
+      - "devops@yourdomain.com"
+      - "developers@yourdomain.com"
+
+# =============================================================================
+# TESTING CONFIGURATION
+# =============================================================================
+# Configure testing tools and paths
+
+testing:
+  phpunit:
+    config_file: "phpunit.xml"
+    coverage: true
+    
+  behat:
+    config_file: "behat.yml"
+    profiles: ["default", "chrome"]
+    
+  phpcs:
+    standard: "Drupal"
+    extensions: "php,module,inc,install,test,profile,theme,css,info,txt,md,yml"
+    paths: 
+      - "web/modules/custom"
+      - "web/themes/custom"
+
+# =============================================================================
+# DEPLOYMENT CONFIGURATION
+# =============================================================================
+# Configure deployment-specific settings
+
+deployment:
+  timeout: 300  # seconds
+  
+  # Drush aliases (if using Drush)
+  drush_aliases:
+    dev: "@mysite.dev"
+    test: "@mysite.test"
+    prod: "@mysite.prod"
+  
+  # Post-deployment tasks
+  post_deploy:
+    cache_clear: true
+    database_updates: true  # Only for non-prod
+    config_import: true
+    
+  # Smoke tests
+  smoke_tests:
+    enabled: true
+    endpoints:
+      - "/"
+      - "/admin"
+      - "/user/login"
+    
+    expected_status: 200
+    timeout: 30
+
+# =============================================================================
+# SECURITY CONFIGURATION
+# =============================================================================
+# Security scanning and compliance
+
+security:
+  composer_audit: true
+  drush_security: true
+  
+  # OWASP ZAP scanning (optional)
+  zap_scan:
+    enabled: false
+    target_url: "https://mysite.acquia-sites.com"
+    
+  # SonarQube integration (optional)
+  sonarqube:
+    enabled: false
+    project_key: "myproject"
+    server_url: "https://sonarqube.yourdomain.com"
+
+# =============================================================================
+# EXAMPLE WEBHOOK CONFIGURATION
+# =============================================================================
+# Configure Git webhooks to trigger pipeline
+
+webhooks:
+  github:
+    url: "https://jenkins.yourdomain.com/github-webhook/"
+    events: ["push", "pull_request"]
+    
+  gitlab:
+    url: "https://jenkins.yourdomain.com/gitlab-webhook/"
+    events: ["push", "merge_request"]
+    
+  bitbucket:
+    url: "https://jenkins.yourdomain.com/bitbucket-webhook/"
+    events: ["push", "pull_request"]
+
+# =============================================================================
+# JENKINS JOB CONFIGURATION
+# =============================================================================
+# Recommended Jenkins job settings
+
+job_configuration:
+  # Build triggers
+  triggers:
+    - "H/5 * * * *"  # Poll SCM every 5 minutes
+    
+  # Build retention
+  retention:
+    days: 30
+    builds: 50
+    
+  # Concurrent builds
+  concurrent_builds: false
+  
+  # Node/agent requirements
+  node_requirements:
+    - "php8.1"
+    - "composer"
+    - "nodejs"
+    
+# =============================================================================
+# TROUBLESHOOTING
+# =============================================================================
+# Common configuration issues and solutions
+
+troubleshooting:
+  common_issues:
+    - issue: "Composer install fails"
+      solution: "Check PHP version and memory limits"
+      
+    - issue: "Git push fails"
+      solution: "Verify SSH keys and repository URL"
+      
+    - issue: "Tests fail"
+      solution: "Check test configuration and database setup"
+      
+    - issue: "Deployment timeout"
+      solution: "Increase timeout values or optimize deployment"
+
+# =============================================================================
+# SAMPLE DRUSH ALIASES
+# =============================================================================
+# Example drush aliases file content
+
+drush_aliases_example: |
+  <?php
+  // File: drush/sites/mysite.site.yml
+  dev:
+    host: web-12345.prod.hosting.acquia.com
+    user: mysite.dev
+    root: /var/www/html/mysite.dev/docroot
+    uri: https://mysitedev.prod.acquia-sites.com
+    
+  test:
+    host: web-12345.prod.hosting.acquia.com
+    user: mysite.test
+    root: /var/www/html/mysite.test/docroot
+    uri: https://mysitetest.prod.acquia-sites.com
+    
+  prod:
+    host: web-12345.prod.hosting.acquia.com
+    user: mysite.prod
+    root: /var/www/html/mysite.prod/docroot
+    uri: https://mysite.com
